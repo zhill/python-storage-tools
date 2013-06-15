@@ -1,10 +1,10 @@
-SANTools
+python-storage-tools
 ========
 
 Python tools for interacting with various SANs directly.
 
 There are two basic packages/paths:
-SANTools: where the primary code for interacting with the SAN lives.
+python-storage-tools: where the primary code for interacting with the SAN lives.
 The sanclient is the base class that SAN-specific implementations should extend.
 The current implementation only contains an EMC VNX extension, vnxclient.
 
