@@ -10,7 +10,7 @@ The current implementation only contains an EMC VNX extension, vnxclient.
 
 SANTests: for implementing tests that use SANTools to separate the test and core code.
 
-You will have to add SANTools to your PYTHONPATH to use SANTests in its current form. That will be fixed soon.
+You will have to add the storage-tools directory to your PYTHONPATH to use SANTests in its current form. That will be fixed soon.
 
 The current EMC VNX implementation requires that you have the EMC Navisphere Secure CLI installed on the local machine
 and that it is installed at /opt/Navisphere/bin/naviseccli
