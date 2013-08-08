@@ -46,6 +46,9 @@ class SANLun:
     id=-1
     name=''
     size=-1
+    
+    def to_string(self):
+        return 'LUN(' + str(self.id) + ', ' + str(self.name) + ', ' + str(self.size) + ')'
             
 class SANConfig:
     '''

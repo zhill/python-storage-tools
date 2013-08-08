@@ -4,9 +4,9 @@ Created on Dec 13, 2012
 @author: zhill
 '''
 
-from storage-tools import sanclient
-from storage-tools import vnxclient
-from storage-tools import processtools
+from sanclient import sanclient
+from sanclient.vnx import vnxclient
+from sanclient import processtools
 import time, thread, threading
 from threading import Thread
 import argparse

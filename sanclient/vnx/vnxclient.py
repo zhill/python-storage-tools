@@ -3,12 +3,12 @@ Created on Dec 13, 2012
 
 @author: zhill
 '''
-from sanclient import SANClient
+from sanclient.sanclient import SANClient
 import time
-from processtools import run_get_status
-from processtools import run_get_output
-from sanclient import SANConfig
-from sanclient import SANLun
+from sanclient.processtools import run_get_status
+from sanclient.processtools import run_get_output
+from sanclient.sanclient import SANConfig
+from sanclient.sanclient import SANLun
 
 #VNX Defaults
 vnx_clone_complete_states = ['synchronized','consistent']
@@ -18,6 +18,7 @@ vnx_default_sp='a'
 vnx_autoassign_true='1'
 vnx_quiescethreshold='10'
 vnx_default_migration_rate='high'
+LUN_DELIMITER='LOGICAL UNIT NUMBER'
 
 class VNXClient(SANClient):
     '''
@@ -31,6 +32,22 @@ class VNXClient(SANClient):
         Constructor
         '''
         self._my_config = config
+        
+    def _parse_lun_list(self, output):
+        '''Constructs a list of SANLun objects from the given input string'''
+        luns = []
+        single_lun_output = ''
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith(LUN_DELIMITER):                
+                single_lun_output = line + '\n'
+            elif line == "" or line == None:
+                #separator, parse it now.
+                luns.append(self._construct_lun(single_lun_output))
+            else:
+                single_lun_output += line + '\n'
+        
+        return luns
         
     def _construct_lun(self, output):
         '''Constructs a SANLun object from the string'''
@@ -161,6 +178,12 @@ class VNXClient(SANClient):
         lun_output = run_get_output(get_command)
         return self._construct_lun(lun_output)
     
+    def get_all_luns(self):
+        '''Gets list of all luns'''
+        command = self._construct_base_command(get_all_luns_command())
+        output = run_get_output(command)
+        return self._parse_lun_list(output)
+        
     def get_lun_by_id(self, lun_id=None):
         '''Gets lun by id lookup'''
         command = self._construct_base_command(get_lun_by_id_command(lun_id=lun_id))
@@ -437,6 +460,9 @@ def expand_lun_command(lun_id=None, new_capacity=None):
 
 def get_lun_by_id_command(lun_id=None):
     return ['lun','-list' , '-l',str(lun_id)]
+
+def get_all_luns_command():
+    return ['lun','-list']
 
 def get_lun_by_name_command(lun_name=None):
     return ['lun','-list','-name',lun_name]
