@@ -65,7 +65,7 @@ def cleanLUNs(client=None, includeRegex=None, excludeRegex=None):
             else:
                 print 'Deleting LUN: ' + lun.to_string()
                 try:
-                    client.delete_lun()
+                    client.delete_lun(lun)
                 except Exception as e:
                     print('Error deleting lun:',e)            
                 
