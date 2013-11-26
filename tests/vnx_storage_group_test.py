@@ -9,15 +9,16 @@ from sanclients import sanclient
 from sanclients.vnx import vnxclient
 import argparse
 
-class Test(unittest.TestCase):
-
-
-    def testName(self):
-        pass
+#class Test(unittest.TestCase):
+class StorageGroupTest:
     
-    def testGroupParse(self):
-        sanconfig = None
+    def testGroupParse(self, sanconfig=None):
+        print 'Testing group parseing'        
         client = vnxclient.VNXClient(sanconfig)
+        groups = client.get_all_storage_groups()
+        print 'Got groups'
+        for g in groups:
+            print 'Group: ' + g.to_string()
         
     def testGroupListParse(self):
         '''
@@ -57,6 +58,8 @@ if __name__ == "__main__":
     config = sanclient.SANConfig(cli_path='/opt/Navisphere/bin/naviseccli',usrname=args.user,passwd=args.password,manage_endpts=args.management,data_endpts=args.data)
     print 'Starting vnx storage group tests'
     
-    unittest.main()
+    #unittest.main()
+    t = StorageGroupTest()
+    t.testGroupParse(sanconfig=config)
     
     print 'Tests complete'

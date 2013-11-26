@@ -109,7 +109,7 @@ class VNXClient(SANClient):
         else:
             return None
     
-    def _parse_storage_group_luns(self, output):
+    def _parse_storage_group_luns(self, output_list):
         '''
         Parses storage group lun list
         '''
@@ -130,18 +130,29 @@ class VNXClient(SANClient):
         # 
         # Parses to { 2 : 156 , 3 : 159 ,...}
         
-        for line in output.splitlines():
+        for line in output_list:
             line = line.strip()
             #Assume that iqns will start with 'iqn'
             chunks = line.split(' ')
-            try:
-                if len(chunks) == 2 and int(chunks[0]) >= 0 and int(chunks[1]) >= 0: 
-                    luns[int(chunks[0].strip())] = int(chunks[1].strip())
-            except ValueError:
-                pass
+            hlu = None
+            alu = None                
+            for c in chunks:
+                if len(c) == 0:
+                    pass
+                elif not c.startswith('-') and not c.startswith('H'):
+                    try:
+                        if hlu == None:
+                            hlu = int(c)
+                        elif hlu != None:
+                            alu = int(c)
+                    except ValueError:
+                        pass                        
+            if hlu != None and alu != None:
+                luns[hlu] = alu
+                
         return luns
     
-    def _parse_storage_group_hosts(self, output):
+    def _parse_storage_group_hosts(self, output_list):
         '''
         Parses host list of vnx storage group
         '''
@@ -159,19 +170,34 @@ class VNXClient(SANClient):
         
         hosts = {}
         
-        for line in output.splitlines():
+        for line in output_list:
             line = line.strip()
             #Assume that iqns will start with 'iqn'
             if line.startswith('iqn'):
                 chunks = line.split(' ')
-                if len(chunks) == 4:
-                    hosts[chunks[0].strip()] = [chunks[2].strip(), int(chunks[3].strip())]
-                else:
-                    print 'Unexpected line format in storage group host parsing: ' + line            
+                iqn = None
+                sp = None
+                port = None
                 
+                for c in chunks:
+                    if len(c) == 0:
+                        pass
+                    if c.startswith('iqn'):
+                        iqn = c.strip();
+                    elif c == 'A' or c == 'B':
+                        sp = c
+                    elif len(c) > 0:
+                        port = c
+                        
+                if iqn != None and sp != None and port != None:
+                    hosts[iqn] = [sp, int(port)]
+            else:
+                #skip all other lines
+                pass
+            
         return hosts
         
-    def _parse_storage_group_list(self, output):
+    def _parse_storage_group_list(self, output_str):
         '''
         Storage Group Name:    iqn1994-05comredhat:41537aa96e26
         Storage Group UID:     5A:27:AF:21:8C:55:E3:11:AA:C1:A8:85:F4:B1:97:1F
@@ -201,40 +227,46 @@ class VNXClient(SANClient):
         hosts_start = 'HBA/SP Pairs:'
         luns_start = 'HLU/ALU Pairs:'
         current_group = None
-        parse_buffer = None
+        parse_buffer = []
         
-        for line in output.splitlines():
+        for line in output_str.splitlines():
             line = line.strip()
             if line.startswith('Storage Group Name'):
                 #Start a new group
                 current_group = SANGroup()
                 groups.append(current_group)
                 chunks = line.split(' ')
-                if len(chunks) == 4:
-                    current_group.name = chunks[3].strip()
+                if len(chunks) == 7:
+                    current_group.name = chunks[6].strip()
                 else:
-                    print "Invalid line: " + line
+                    print 'Invalid line: ' + line + ' expected 7 chunks, got: ' + str(len(chunks))
+                    for c in chunks:
+                        print 'Chunk - ' + c + ' - '
             elif line.startswith('Storage Group UID'):
                 chunks = line.split(' ')
-                if len(chunks) == 4:
-                    current_group.id = chunks[3].strip()
+                if len(chunks) == 8:
+                    #The output from vnx has lots of spaces, rather than tabs
+                    current_group.id = chunks[7].strip()
                 else:
-                    print "Invalid line: " + line
+                    print 'Invalid line: ' + line + ' expected 8 chunks, got: ' + str(len(chunks))
+                    for c in chunks:
+                        print 'Chunk - ' + c + ' - ' 
             elif line.startswith(hosts_start):
                 if len(parse_buffer) > 0:
-                    print 'Unexpected buffer found: ' + parse_buffer                    
-                parse_buffer = ''                
+                    print 'Unexpected buffer found: ' + str(parse_buffer)
+                parse_buffer = []                
             elif line.startswith(luns_start):
                 if len(parse_buffer) > 0:
                     current_group.hosts = self._parse_storage_group_hosts(parse_buffer)
-                    parse_buffer = ''
+                    parse_buffer = []
             elif line.startswith('Shareable'):
                 if len(parse_buffer) > 0:
                     current_group.luns = self._parse_storage_group_luns(parse_buffer)                    
-                    parse_buffer = ''
+                    parse_buffer = []
             else:
                 #Add line to buffer
-                parse_buffer += line + '\n'
+                if len(line) > 0:
+                    parse_buffer.append(line)
                         
         return groups
     
@@ -569,7 +601,13 @@ class VNXClient(SANClient):
         cmd = self._construct_base_command(get_storage_group_command(group_name=group_name))
         print cmd
         output = run_get_output(cmd)
+        return self._parse_storage_group_list(output).pop()
         
+    def get_all_storage_groups(self):
+        cmd = self._construct_base_command(get_all_storage_groups_command())
+        print cmd
+        output = run_get_output(cmd)
+        return self._parse_storage_group_list(output)
     
 #END VNXClient class
 
