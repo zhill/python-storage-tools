@@ -56,11 +56,11 @@ class SANGroup:
     '''
     id=''
     name=''
-    hosts=[]
-    luns=[]
+    hosts={}
+    luns={}
     
     def to_string(self):
-        return 'SAN Group(' + str(self.id) + ',' + str(self.name) + ' hosts= ' + str(self.hosts) + ' luns= ' + str(self.luns)
+        return 'SAN Group(id = ' + str(self.id) + ' , name = ' + str(self.name) + ' hosts = ' + str(self.hosts) + ' luns = ' + str(self.luns)
     
 class SANConfig:
     '''

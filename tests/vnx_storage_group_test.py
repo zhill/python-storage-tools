@@ -13,34 +13,47 @@ import argparse
 class StorageGroupTest:
     
     def testGroupParse(self, sanconfig=None):
-        print 'Testing group parseing'        
+        print 'Testing single group parsing'
         client = vnxclient.VNXClient(sanconfig)
-        groups = client.get_all_storage_groups()
-        print 'Got groups'
-        for g in groups:
-            print 'Group: ' + g.to_string()
+        group = client.get_group('iqn1998-01comvmware:g-12-05-0c0968d1')
+        print 'Got group: ' + group.to_string()
         
-    def testGroupListParse(self):
+    def testGroupListParse(self, sanconfig=None):
         '''
         Test group list parsing
         '''
         
         print 'Testing group list parsing'
-        pass
+        client = vnxclient.VNXClient(sanconfig)
+        groups = client.get_all_groups()
+        print 'Got groups'
+        for g in groups:
+            print 'Group: ' + g.to_string()
         
-    def testGroupCreate(self):
+    def testGroupCreate(self, sanconfig=None):
         '''
         Test storage group creation
         '''
         print 'Testing storage group creation'
         pass
     
-    def testGroupDelete(self):
+    def testGroupDelete(self, sanconfig=None):
         '''
         Test storage group deletion
         '''
         print 'Testing storage group deletion'
-        pass
+        
+        client = vnxclient.VNXClient(sanconfig)
+        group_name='iqn1994-05comredhat:5bf3a10e597'
+        group = client.get_group(group_name)
+        print 'Got group: ' + group.to_string()
+        
+        print 'Deleting group'
+        client.delete_group(group_name)
+        
+        print 'Getting deleted group, should fail'
+        group2 = client.get_group(group_name)
+        print 'Got ' + group2.to_string()
 
 
 if __name__ == "__main__":
@@ -60,6 +73,8 @@ if __name__ == "__main__":
     
     #unittest.main()
     t = StorageGroupTest()
-    t.testGroupParse(sanconfig=config)
+    #t.testGroupParse(sanconfig=config)
+    t.testGroupListParse(sanconfig=config)
+    #t.testGroupDelete(sanconfig=config)
     
     print 'Tests complete'

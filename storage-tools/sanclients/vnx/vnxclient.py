@@ -113,8 +113,6 @@ class VNXClient(SANClient):
         '''
         Parses storage group lun list
         '''
-        print 'Parsing storage group luns'
-        luns = {}
         
         #Each host is a dict entry of name -> [ SPName , SPPort ]
         #Example:  
@@ -130,6 +128,7 @@ class VNXClient(SANClient):
         # 
         # Parses to { 2 : 156 , 3 : 159 ,...}
         
+        luns = {}
         for line in output_list:
             line = line.strip()
             #Assume that iqns will start with 'iqn'
@@ -155,9 +154,7 @@ class VNXClient(SANClient):
     def _parse_storage_group_hosts(self, output_list):
         '''
         Parses host list of vnx storage group
-        '''
-        print 'Parsing storage group hosts'
-        
+        '''        
         #Each host is a dict entry of name -> [ SPName , SPPort ]
         #Example:  
         #  HBA/SP Pairs:
@@ -228,10 +225,12 @@ class VNXClient(SANClient):
         luns_start = 'HLU/ALU Pairs:'
         current_group = None
         parse_buffer = []
+        parse_phase = None
         
         for line in output_str.splitlines():
             line = line.strip()
             if line.startswith('Storage Group Name'):
+                parse_phase = None
                 #Start a new group
                 current_group = SANGroup()
                 groups.append(current_group)
@@ -243,6 +242,7 @@ class VNXClient(SANClient):
                     for c in chunks:
                         print 'Chunk - ' + c + ' - '
             elif line.startswith('Storage Group UID'):
+                parse_phase = None
                 chunks = line.split(' ')
                 if len(chunks) == 8:
                     #The output from vnx has lots of spaces, rather than tabs
@@ -254,15 +254,24 @@ class VNXClient(SANClient):
             elif line.startswith(hosts_start):
                 if len(parse_buffer) > 0:
                     print 'Unexpected buffer found: ' + str(parse_buffer)
-                parse_buffer = []                
-            elif line.startswith(luns_start):
+                parse_buffer = []             
+                parse_phase = 'host'   
+            elif line.startswith(luns_start):                
                 if len(parse_buffer) > 0:
-                    current_group.hosts = self._parse_storage_group_hosts(parse_buffer)
+                    if parse_phase == 'host':
+                        current_group.hosts = self._parse_storage_group_hosts(parse_buffer)                        
+                    elif parse_phase == 'lun':
+                        current_group.luns = self._parse_storage_group_luns(parse_buffer)
                     parse_buffer = []
+                    parse_phase = 'lun'
             elif line.startswith('Shareable'):
                 if len(parse_buffer) > 0:
-                    current_group.luns = self._parse_storage_group_luns(parse_buffer)                    
+                    if parse_phase == 'host':
+                        current_group.hosts = self._parse_storage_group_hosts(parse_buffer)                        
+                    elif parse_phase == 'lun':
+                        current_group.luns = self._parse_storage_group_luns(parse_buffer)
                     parse_buffer = []
+                parse_phase = None
             else:
                 #Add line to buffer
                 if len(line) > 0:
@@ -597,17 +606,54 @@ class VNXClient(SANClient):
         return 'none'
 
 
-    def get_storage_group(self, group_name=None):
+    def get_group(self, group_name=None):
         cmd = self._construct_base_command(get_storage_group_command(group_name=group_name))
         print cmd
         output = run_get_output(cmd)
-        return self._parse_storage_group_list(output).pop()
+        groups = self._parse_storage_group_list(output)
+        if len(groups) > 0:
+            return groups.pop()
+        else:
+            return None
         
-    def get_all_storage_groups(self):
+    def get_all_groups(self):
         cmd = self._construct_base_command(get_all_storage_groups_command())
         print cmd
         output = run_get_output(cmd)
         return self._parse_storage_group_list(output)
+    
+    def delete_group(self, group_name=None):
+        cmd = self._construct_base_command(delete_storage_group_command(group_name=group_name))
+        print cmd
+        status = run_get_status(cmd)
+        return (status == 0)
+    
+    def remove_host_from_group(self, group_name=None, host_iqn=None):
+        cmd = self._construct_base_command(remove_host_from_storage_group_command(group_name=group_name, host_iqn=host_iqn))
+        print cmd
+        status = run_get_status(cmd)
+        return (status == 0)
+    
+    def remove_lun_from_group(self, group_name=None, hlu=None):
+        cmd = self._construct_base_command(remove_lun_from_storage_group_command(group_name=group_name, hlu=hlu))
+        print cmd
+        status = run_get_status(cmd)
+        return (status == 0)
+    
+    def deep_clean_group(self, san_group=None):
+        print 'Deep cleaning storage group ' + san_group.name
+        for lun in san_group.luns:
+            print 'Removing hlu lun: ' + lun
+            if not self.remove_lun_from_group(group_name=san_group.name, hlu=lun):
+                return False
+        
+        for host in san_group.hosts:
+            print 'Removing host from group ' + host
+            if not self.remove_host_from_group(group_name=san_group.name, host_iqn=host):
+                return False
+        
+        print 'Deleting group itself'
+        return self.delete_group(san_group.name)
     
 #END VNXClient class
 
@@ -659,7 +705,7 @@ def create_storage_group_command(group_name=None):
     return ['storagegroup','-create','-gname', group_name]
 
 def delete_storage_group_command(group_name=None):
-    return ['storagegroup','-destroy', 'gname', group_name, '-o']
+    return ['storagegroup','-destroy', '-gname', group_name, '-o']
 
 def add_lun_to_storage_group_command(group_name=None, lun_id=None, hlu=None):
     return ['storagegroup','-addhlu','-gname',group_name,'hlu',str(hlu), '-alu',str(lun_id)]

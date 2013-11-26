@@ -37,7 +37,7 @@ PROFILE = 0
 # Is this a dry-run?
 DRYRUN = False
 
-def cleanStorageGropus(client=None, includeRegex=None, excludeRegex=None):
+def clean_storage_groups(client=None, includeRegex=None, excludeRegex=None):
     '''Cleans Storage Groups from the specified SAN'''
     print 'Deleting Storage Groups that match ' + str(includeRegex) + ' but excluding matches for ' + str(excludeRegex)
     
@@ -53,7 +53,7 @@ def cleanStorageGropus(client=None, includeRegex=None, excludeRegex=None):
     print 'Getting Storage Groups'
     sgs = []
     try:
-        sgs = client.get_storage_groups()
+        sgs = client.get_all_groups()
     except Exception as e:
         print('Failed to get lun list',e)
         return 1
@@ -64,8 +64,14 @@ def cleanStorageGropus(client=None, includeRegex=None, excludeRegex=None):
                 print 'DRY RUN. Would delete: ' + group.to_string()
             else:
                 print 'Deleting Group: ' + group.to_string()
+                if len(group.hosts) > 0 and len(group.luns) == 0:
+                    #remove host records if no luns attached
+                    for h in group.hosts:
+                        print 'Removing host ' + h + ' from storage group since no luns attached'
+                        client.remove_host_from_group(group.name, h)
+                    
                 try:
-                    client.delete_group(group)
+                    client.delete_group(group.name)
                 except Exception as e:
                     print('Error deleting group:',e)            
                 
@@ -75,7 +81,7 @@ def cleanStorageGropus(client=None, includeRegex=None, excludeRegex=None):
     print 'Cleaning complete!'
     return 0
     
-def cleanLUNs(client=None, includeRegex=None, excludeRegex=None):
+def clean_luns(client=None, includeRegex=None, excludeRegex=None):
     '''Cleans LUNs from the specified SAN'''
     print 'Deleting LUNs that match ' + str(includeRegex) + ' but excluding matches for ' + str(excludeRegex)
     
@@ -157,6 +163,8 @@ USAGE
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument("-i", "--include", dest="include", help="only include paths matching this regex pattern. Note: exclude is given preference over include. [default: %(default)s]", metavar="RE" )
         parser.add_argument("-e", "--exclude", dest="exclude", help="exclude paths matching this regex pattern. [default: %(default)s]", metavar="RE" )
+        parser.add_argument("-l", "--luns", dest="clean_luns", action='store_true', help="Clean LUNs. [default: %(default)s]" )
+        parser.add_argument("-g", "--groups", dest="clean_groups", action='store_true', help="Clean Storage Groups [default: %(default)s]" )
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument('-d', '--dryrun', action='store_true', help='Do a dry run, outputting what would happen, but not actual changing resources')
         parser.add_argument('-c', '--clipath', help='path to vnx naviseccli tool', default='/opt/Navisphere/bin/naviseccli')
@@ -189,7 +197,17 @@ USAGE
                             
         config = SANConfig(cli_path=args.clipath,usrname=args.user,passwd=args.password,manage_endpts=args.management,data_endpts=[])
         client = VNXClient(config)
-        cleanLUNs(client, inpat, expat)
+        if args.clean_luns:
+            #clean_luns(client, inpat, expat)
+            print 'Fake lun clean here'
+        else:
+            print 'LUN cleaning not specified, skipping'
+
+        if args.clean_groups:
+            clean_storage_groups(client, inpat, expat)            
+        else:
+            print 'Storage Group cleaning not specified, skipping'
+        
         
         return 0
     except KeyboardInterrupt:
