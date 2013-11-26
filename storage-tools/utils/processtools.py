@@ -3,9 +3,8 @@ Created on Dec 13, 2012
 
 @author: zhill
 '''
-import os, sys, subprocess
-import string
-    
+import subprocess
+
 def run_get_status(cmd):
     try:
         subprocess.check_call(cmd)
@@ -17,6 +16,3 @@ def run_get_status(cmd):
 def run_get_output(cmd):
     p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     return p.communicate()[0]
-
-if __name__ == '__main__':
-    pass

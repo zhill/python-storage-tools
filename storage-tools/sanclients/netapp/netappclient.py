@@ -3,7 +3,7 @@ Created on Dec 13, 2012
 
 @author: zhill
 '''
-from sanclient import SANClient
+from sanclients.sanclient import SANClient
 
 class NetappClient(SANClient):
     '''

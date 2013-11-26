@@ -4,13 +4,11 @@ Created on Dec 13, 2012
 @author: zhill
 '''
 
-from sanclient import sanclient
-from sanclient.vnx import vnxclient
-from sanclient import processtools
-import time, thread, threading
+from sanclients import sanclient
+from sanclients.vnx import vnxclient
+import time
 from threading import Thread
 import argparse
-from argparse import ArgumentParser
 
 lun_list=['src_lun_16gb','src_lun_32gb','src_lun_64gb','src_lun_128gb','src_lun_256gb']
 global_config=None

@@ -50,6 +50,18 @@ class SANLun:
     def to_string(self):
         return 'LUN(' + str(self.id) + ', ' + str(self.name) + ', ' + str(self.size) + ')'
             
+class SANGroup:
+    '''
+    Represents a group of luns and hosts. EMC StorageGroup or Netapp iGroup are examples, but this is generic
+    '''
+    id=''
+    name=''
+    hosts=[]
+    luns=[]
+    
+    def to_string(self):
+        return 'SAN Group(' + str(self.id) + ',' + str(self.name) + ' hosts= ' + str(self.hosts) + ' luns= ' + str(self.luns)
+    
 class SANConfig:
     '''
     Top-level interface for SAN configs

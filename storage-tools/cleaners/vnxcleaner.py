@@ -10,7 +10,7 @@ It defines classes_and_methods
         
 @copyright:  2013 Zach Hill
         
-@license:    GGPL3
+@license:    
 
 @contact:    zach@eucalyptus.com
 @deffield    08-08-2013
@@ -22,8 +22,8 @@ import re
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
-from sanclient.vnx.vnxclient import VNXClient
-from sanclient.sanclient import SANConfig
+from sanclients.vnx.vnxclient import VNXClient
+from sanclients.sanclient import SANConfig
 
 __all__ = []
 __version__ = 0.1
@@ -37,6 +37,44 @@ PROFILE = 0
 # Is this a dry-run?
 DRYRUN = False
 
+def cleanStorageGropus(client=None, includeRegex=None, excludeRegex=None):
+    '''Cleans Storage Groups from the specified SAN'''
+    print 'Deleting Storage Groups that match ' + str(includeRegex) + ' but excluding matches for ' + str(excludeRegex)
+    
+    if client == None:
+        raise(Exception('No client received.'))
+    
+    if includeRegex == '':
+        includeRegex = None
+        
+    if excludeRegex == '': 
+        excludeRegex = None
+    
+    print 'Getting Storage Groups'
+    sgs = []
+    try:
+        sgs = client.get_storage_groups()
+    except Exception as e:
+        print('Failed to get lun list',e)
+        return 1
+    
+    for group in sgs:
+        if (includeRegex == None or re.match(includeRegex, group.name)) and (excludeRegex == None or not re.match(excludeRegex, group.name)):
+            if DRYRUN == True:
+                print 'DRY RUN. Would delete: ' + group.to_string()
+            else:
+                print 'Deleting Group: ' + group.to_string()
+                try:
+                    client.delete_group(group)
+                except Exception as e:
+                    print('Error deleting group:',e)            
+                
+        else:
+            print 'Skipping Group: ' + group.to_string()
+    
+    print 'Cleaning complete!'
+    return 0
+    
 def cleanLUNs(client=None, includeRegex=None, excludeRegex=None):
     '''Cleans LUNs from the specified SAN'''
     print 'Deleting LUNs that match ' + str(includeRegex) + ' but excluding matches for ' + str(excludeRegex)

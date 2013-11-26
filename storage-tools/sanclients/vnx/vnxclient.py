@@ -3,12 +3,13 @@ Created on Dec 13, 2012
 
 @author: zhill
 '''
-from sanclient.sanclient import SANClient
 import time
-from sanclient.processtools import run_get_status
-from sanclient.processtools import run_get_output
-from sanclient.sanclient import SANConfig
-from sanclient.sanclient import SANLun
+from sanclients.sanclient import SANClient
+from utils.processtools import run_get_output
+from utils.processtools import run_get_status
+from sanclients.sanclient import SANConfig
+from sanclients.sanclient import SANLun
+from sanclients.sanclient import SANGroup
 
 #VNX Defaults
 vnx_clone_complete_states = ['synchronized','consistent']
@@ -26,7 +27,7 @@ class VNXClient(SANClient):
     '''
     _my_config = None
     _cmd_base = ''
-
+    
     def __init__(self, config):
         '''
         Constructor
@@ -107,6 +108,135 @@ class VNXClient(SANClient):
             return lun
         else:
             return None
+    
+    def _parse_storage_group_luns(self, output):
+        '''
+        Parses storage group lun list
+        '''
+        print 'Parsing storage group luns'
+        luns = {}
+        
+        #Each host is a dict entry of name -> [ SPName , SPPort ]
+        #Example:  
+        #HLU/ALU Pairs:
+        #
+        #  HLU Number     ALU Number
+        #  ----------     ----------
+        #    2               156
+        #    3               159
+        #    4               161
+        #    5               111
+        #    1               162
+        # 
+        # Parses to { 2 : 156 , 3 : 159 ,...}
+        
+        for line in output.splitlines():
+            line = line.strip()
+            #Assume that iqns will start with 'iqn'
+            chunks = line.split(' ')
+            try:
+                if len(chunks) == 2 and int(chunks[0]) >= 0 and int(chunks[1]) >= 0: 
+                    luns[int(chunks[0].strip())] = int(chunks[1].strip())
+            except ValueError:
+                pass
+        return luns
+    
+    def _parse_storage_group_hosts(self, output):
+        '''
+        Parses host list of vnx storage group
+        '''
+        print 'Parsing storage group hosts'
+        
+        #Each host is a dict entry of name -> [ SPName , SPPort ]
+        #Example:  
+        #  HBA/SP Pairs:
+        #
+        #  HBA UID                                          SP Name     SPPort
+        #  -------                                          -------     ------ 
+        #  iqn.1998-01.com.vmware:eucahost-51-182-15647964   SP A         6
+        # 
+        # Parses to { 'iqn.1998-01.com.vmware:eucahost-51-182-15647964' : [ 'A', 6 ] }
+        
+        hosts = {}
+        
+        for line in output.splitlines():
+            line = line.strip()
+            #Assume that iqns will start with 'iqn'
+            if line.startswith('iqn'):
+                chunks = line.split(' ')
+                if len(chunks) == 4:
+                    hosts[chunks[0].strip()] = [chunks[2].strip(), int(chunks[3].strip())]
+                else:
+                    print 'Unexpected line format in storage group host parsing: ' + line            
+                
+        return hosts
+        
+    def _parse_storage_group_list(self, output):
+        '''
+        Storage Group Name:    iqn1994-05comredhat:41537aa96e26
+        Storage Group UID:     5A:27:AF:21:8C:55:E3:11:AA:C1:A8:85:F4:B1:97:1F
+        Shareable:             YES
+        
+        Storage Group Name:    iqn1998-01comvmware:eucahost-51-182-15647964
+        Storage Group UID:     D8:02:9D:21:F9:C4:E2:11:BE:54:E7:9F:89:20:4D:1E
+        HBA/SP Pairs:
+        
+          HBA UID                                          SP Name     SPPort
+          -------                                          -------     ------ 
+          iqn.1998-01.com.vmware:eucahost-51-182-15647964   SP A         6
+        
+        HLU/ALU Pairs:
+        
+          HLU Number     ALU Number
+          ----------     ----------
+            2               156
+            3               159
+            4               161
+            5               111
+            1               162
+        Shareable:             YES
+        '''
+        
+        groups = []        
+        hosts_start = 'HBA/SP Pairs:'
+        luns_start = 'HLU/ALU Pairs:'
+        current_group = None
+        parse_buffer = None
+        
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith('Storage Group Name'):
+                #Start a new group
+                current_group = SANGroup()
+                groups.append(current_group)
+                chunks = line.split(' ')
+                if len(chunks) == 4:
+                    current_group.name = chunks[3].strip()
+                else:
+                    print "Invalid line: " + line
+            elif line.startswith('Storage Group UID'):
+                chunks = line.split(' ')
+                if len(chunks) == 4:
+                    current_group.id = chunks[3].strip()
+                else:
+                    print "Invalid line: " + line
+            elif line.startswith(hosts_start):
+                if len(parse_buffer) > 0:
+                    print 'Unexpected buffer found: ' + parse_buffer                    
+                parse_buffer = ''                
+            elif line.startswith(luns_start):
+                if len(parse_buffer) > 0:
+                    current_group.hosts = self._parse_storage_group_hosts(parse_buffer)
+                    parse_buffer = ''
+            elif line.startswith('Shareable'):
+                if len(parse_buffer) > 0:
+                    current_group.luns = self._parse_storage_group_luns(parse_buffer)                    
+                    parse_buffer = ''
+            else:
+                #Add line to buffer
+                parse_buffer += line + '\n'
+                        
+        return groups
     
     def _construct_base_command(self, cmd):
         if(self._cmd_base == ''):
@@ -433,6 +563,13 @@ class VNXClient(SANClient):
             if line.lower().startswith('current state'):
                 return line.lower().split(':')[1]
         return 'none'
+
+
+    def get_storage_group(self, group_name=None):
+        cmd = self._construct_base_command(get_storage_group_command(group_name=group_name))
+        print cmd
+        output = run_get_output(cmd)
+        
     
 #END VNXClient class
 
@@ -474,6 +611,12 @@ def get_lun_properties_command(lun_name=None):
     return ['lun','-list','-name', lun_name, '-status', '-poolName','-userCap','-consumedCap','-state']
 
 #--------------------storage group commands-------------------------
+def get_storage_group_command(group_name=None):
+    return ['storagegroup','-list','-gname', group_name]
+
+def get_all_storage_groups_command():
+    return ['storagegroup', '-list']
+
 def create_storage_group_command(group_name=None):
     return ['storagegroup','-create','-gname', group_name]
 
