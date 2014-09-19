@@ -1,8 +1,8 @@
-'''
+"""
 Created on Nov 26, 2013
 
 @author: zhill
-'''
+"""
 import unittest
 
 from sanclients import sanclient
@@ -19,9 +19,9 @@ class StorageGroupTest:
         print 'Got group: ' + group.to_string()
         
     def testGroupListParse(self, sanconfig=None):
-        '''
+        """
         Test group list parsing
-        '''
+        """
         
         print 'Testing group list parsing'
         client = vnxclient.VNXClient(sanconfig)
@@ -31,16 +31,16 @@ class StorageGroupTest:
             print 'Group: ' + g.to_string()
         
     def testGroupCreate(self, sanconfig=None):
-        '''
+        """
         Test storage group creation
-        '''
+        """
         print 'Testing storage group creation'
         pass
     
     def testGroupDelete(self, sanconfig=None):
-        '''
+        """
         Test storage group deletion
-        '''
+        """
         print 'Testing storage group deletion'
         
         client = vnxclient.VNXClient(sanconfig)

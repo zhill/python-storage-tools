@@ -1,8 +1,8 @@
-'''
+"""
 Created on Dec 13, 2012
 
 @author: zhill
-'''
+"""
 
 from sanclients import sanclient
 from sanclients.vnx import vnxclient
@@ -15,9 +15,9 @@ lun_list=['src_lun_16gb','src_lun_32gb','src_lun_64gb','src_lun_128gb','src_lun_
 global_config=None
 
 def run_clone_suite(luns=None, iterations=4):
-    '''
+    """
     Runs the clone test multiple times, set the iterations to determine how many tests to run
-    '''
+    """
     if luns == None:
         print 'Must specify a lun list argument'
         return
@@ -33,9 +33,9 @@ def run_clone_suite(luns=None, iterations=4):
     return results
 
 def run_migrate_suite(luns=None, iterations=4):
-    '''
+    """
     Runs the migrate test multiple times, set the iterations to determine how many tests to run
-    '''
+    """
     if luns == None:
         print 'Must specify a lun list argument'
         return
@@ -51,10 +51,10 @@ def run_migrate_suite(luns=None, iterations=4):
     return results
 
 def run_concurrent_migrate_bench(luns=None, concurrency=4):
-    '''
+    """
     Runs a concurrent test by running the single migrate operation concurrently
     in individual threads. Uses a global variable to aggregate results
-    '''
+    """
     if luns == None:
         print 'Must specify a lun list argument'
         return
@@ -94,10 +94,10 @@ def run_concurrent_migrate_bench(luns=None, concurrency=4):
     return concurrent_results
 
 def run_concurrent_clone_bench(luns=None, concurrency=4):
-    '''
+    """
     Runs a concurrent test by running the single migrate operation concurrently
     in individual threads. Uses a global variable to aggregate results
-    '''
+    """
     if luns == None:
         print 'Must specify a lun list argument'
         return
@@ -143,11 +143,11 @@ class migrateThread(Thread):
         self.results = results_dict
 
     def run(self):
-        '''
+        """
         Runs a single migration operation but wraps it such that this
         can be made an individual thread and places its results in the
         global dictionary.
-        '''
+        """
         if self.results == None:
             print 'Must specify a results dictionary argument'
             return
@@ -163,11 +163,11 @@ class cloneThread(Thread):
         self.results = results_dict
 
     def run(self):
-        '''
+        """
         Runs a single clone operation but wraps it such that this
         can be made an individual thread and places its results in the
         global dictionary.
-        '''
+        """
         if self.results == None:
             print 'Must specify a results dictionary argument'
             return
@@ -209,7 +209,7 @@ def run_migrate_bench(config=None, luns=None):
     return result_list
     
 def clone_single_lun(sanconfig=None, client=None, src_lun_name=None, dest_lun_name=None, cleanup_src=False):
-    '''Returns the time (integer) to clone the lun, only measures the clone itself'''
+    """Returns the time (integer) to clone the lun, only measures the clone itself"""
     if src_lun_name == None:
         print 'No source lun given, cannot clone.'
         return
@@ -476,7 +476,7 @@ def migrate_single_lun(sanconfig=None, client=None, src_lun_name=None, dest_lun_
 local_iqn = 'localiqn'
 
 def get_iqn():
-    '''Read iqn from /etc/iscsi/initiatorname.iscsi'''
+    """Read iqn from /etc/iscsi/initiatorname.iscsi"""
     if local_iqn == 'localiqn':
         fd = open('/etc/iscsi/initiatorname.iscsi')
         name = fd.readline().split('=')[1].strip()
@@ -495,14 +495,14 @@ def attach_lun_local(client=None, lun=None):
 
 #Unused so far
 def host_attach(client=None, target_iqn=None):
-    '''
+    """
     Attach the lun to the local host, assumes no CHAP authentication.
     Returns the name of the local device that is the attachment
-    
+
     This is VNX specific for our setup, see the iqn and IP
-    
+
     Also assumes only a single lun, so always looks for LUN 1 for device
-    '''
+    """
     
     add_static_target = ['iscsiadm','-m','node','-T','iqn.1992-04.com.emc:cx.apm00121200804.a6', '-p','192.168.25.182', '-o', 'new']
     scan_sessions = ['iscsiadm','-m','session','-R']    
